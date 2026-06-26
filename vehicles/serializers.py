@@ -1,0 +1,88 @@
+from rest_framework import serializers
+
+from vehicles.models import Vehicle, VehiclePhoto
+
+
+def image_url(image_field) -> str | None:
+    if not image_field:
+        return None
+    return image_field.url
+
+
+class VehiclePhotoSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VehiclePhoto
+        fields = (
+            "description",
+            "section",
+            "masonry_position",
+            "carousel_position",
+            "image_url",
+        )
+
+    def get_image_url(self, obj: VehiclePhoto) -> str:
+        return image_url(obj.image) or ""
+
+
+class VehicleListSerializer(serializers.ModelSerializer):
+    thumbnail_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Vehicle
+        fields = (
+            "short_id",
+            "title",
+            "asking_price",
+            "location",
+            "mileage_km",
+            "thumbnail_url",
+            "created_at",
+        )
+
+    def get_thumbnail_url(self, obj: Vehicle) -> str | None:
+        return image_url(obj.thumbnail.image)
+
+
+class VehicleDetailSerializer(serializers.ModelSerializer):
+    photos = VehiclePhotoSerializer(many=True, read_only=True)
+    seller = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Vehicle
+        fields = (
+            "short_id",
+            "title",
+            "description",
+            "asking_price",
+            "location",
+            "mileage_km",
+            "created_at",
+            "vehicle_type",
+            "make",
+            "model",
+            "trim",
+            "model_code",
+            "year_of_manufacture",
+            "year_of_registration",
+            "condition",
+            "registration_status",
+            "transmission",
+            "body_type",
+            "fuel_type",
+            "hybrid_type",
+            "drive_type",
+            "engine_code",
+            "engine_capacity_cc",
+            "exterior_color",
+            "interior_color",
+            "interior_type",
+            "seats",
+            "doors",
+            "wheel_size_in",
+            "tyre_size",
+            "features",
+            "seller",
+            "photos",
+        )

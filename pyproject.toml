@@ -1,9 +1,20 @@
 [project]
 name = "core-api"
 version = "0.1.0"
-description = "Add your description here"
+description = "Davana core API"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = [
-    "django>=5.2.15",
+    "adrf>=0.1.12",
+    "django>=6.0",
+    "django-filter>=25.2",
+    "django-storages[azure]>=1.14.6",
+    "djangorestframework>=3.17.1",
+    "drf-extensions @ git+https://github.com/chibisov/drf-extensions.git@41bd651bf5eb0af8cd6a4f8d80c553518719ec39",
+    "drf-pydantic>=2.9.1",
+    "nanoid>=2.0.0",
+    "pillow>=12.2.0",
+    "psycopg[binary]>=3.3.4",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
 ]

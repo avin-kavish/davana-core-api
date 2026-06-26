@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Environment and local data
+.env
+db.sqlite3
+test_db.sqlite3
+media/
+staticfiles/
