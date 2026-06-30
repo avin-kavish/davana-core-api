@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 urlpatterns = [
-    path("api/system-admin/", admin.site.urls),
+    path("system-admin/", admin.site.urls),
     path("v1/", include("davana_core.v1_urls")),
 ]
 
