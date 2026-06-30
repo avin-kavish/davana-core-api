@@ -36,7 +36,7 @@ def database_config() -> dict[str, Any]:
         "ENGINE": "django.db.backends.postgresql",
         "HOST": env("CORE_DATA_HOST"),
         "PORT": os.environ.get("CORE_DATA_PORT", "5432"),
-        "NAME": env("CORE_DATA_NAME"),
+        "NAME": env("CORE_DATA_DATABASE"),
         "USER": env("CORE_DATA_USER"),
         "PASSWORD": env("CORE_DATA_PASSWORD"),
         "OPTIONS": {"sslmode": os.environ.get("CORE_DATA_SSLMODE", "prefer")},
