@@ -106,6 +106,13 @@ class VehicleDetailSerializer(serializers.ModelSerializer):
         return group_and_sort_features(obj.features)
 
 
+class VehicleSearchSuggestionSerializer(serializers.Serializer):
+    phrase = serializers.CharField()
+    make = serializers.CharField()
+    model = serializers.CharField(allow_null=True)
+    year = serializers.IntegerField(allow_null=True)
+
+
 class VehicleActivityCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VehicleActivity

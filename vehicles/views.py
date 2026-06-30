@@ -1,4 +1,5 @@
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet, GenericViewSet
 from rest_framework.mixins import CreateModelMixin
@@ -8,7 +9,13 @@ from vehicles.filter_params import build_filter_params, filterset_data
 from vehicles.filters import VehicleFilterSet
 from vehicles.models import Vehicle, VehicleActivity
 from vehicles.pagination import VehicleCursorPagination
-from vehicles.serializers import VehicleDetailSerializer, VehicleActivityCreateSerializer, VehicleListSerializer
+from vehicles.serializers import (
+    VehicleActivityCreateSerializer,
+    VehicleDetailSerializer,
+    VehicleListSerializer,
+    VehicleSearchSuggestionSerializer,
+)
+from vehicles.suggestions import vehicle_search_suggestions
 
 from django.shortcuts import get_object_or_404
 
@@ -51,6 +58,19 @@ class VehicleViewSet(DetailSerializerMixin, ReadOnlyModelViewSet):
         response = self.get_paginated_response(serializer.data)
         response.data["filters"] = filters
         return response
+
+    @action(detail=False, methods=["get"])
+    def suggestions(self, request):
+        query = request.query_params.get("q")
+        try:
+            limit = int(request.query_params.get("limit", 10))
+        except (TypeError, ValueError):
+            limit = 10
+        limit = max(1, min(limit, 25))
+
+        suggestions = vehicle_search_suggestions(query, limit)
+        serializer = VehicleSearchSuggestionSerializer(suggestions, many=True)
+        return Response(serializer.data)
 
 
 def get_client_ip(request) -> str | None:

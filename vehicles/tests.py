@@ -14,6 +14,7 @@ from vehicles.filter_params import build_filter_params
 from vehicles.filters import VehicleFilterSet
 from vehicles.models import Vehicle, VehicleActivity, VehicleActivityType, VehicleCondition, VehiclePhoto, VehicleType
 from vehicles.short_id import SHORT_ID_SIZE
+from vehicles.suggestions import vehicle_search_suggestions
 from vehicles.term_parser import parse_vehicle_term
 
 User = get_user_model()
@@ -353,6 +354,154 @@ class VehicleApiTests(TestCase):
         response = self.client.get(reverse("vehicle-list"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["results"], [])
+
+    def test_suggestions_endpoint_returns_unique_makes_and_make_model_pairs(self):
+        create_vehicle(
+            self.seller,
+            model="Civic",
+            year_of_manufacture=2015,
+            is_active=True,
+        )
+        create_vehicle(
+            self.seller,
+            model="Civic",
+            year_of_manufacture=2015,
+            is_active=True,
+        )
+        create_vehicle(
+            self.seller,
+            model="Fit",
+            year_of_manufacture=2010,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("vehicle-suggestions"))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(
+            payload,
+            [
+                {
+                    "phrase": "Honda",
+                    "make": "Honda",
+                    "model": None,
+                    "year": None,
+                },
+                {
+                    "phrase": "Honda CR-V",
+                    "make": "Honda",
+                    "model": "CR-V",
+                    "year": None,
+                },
+                {
+                    "phrase": "Honda Civic",
+                    "make": "Honda",
+                    "model": "Civic",
+                    "year": None,
+                },
+                {
+                    "phrase": "Honda Fit",
+                    "make": "Honda",
+                    "model": "Fit",
+                    "year": None,
+                },
+            ],
+        )
+
+    def test_suggestions_endpoint_filters_by_query(self):
+        create_vehicle(
+            self.seller,
+            model="Civic",
+            year_of_manufacture=2015,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("vehicle-suggestions"), {"q": "civic"})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["phrase"], "Honda Civic")
+        self.assertEqual(payload[0]["model"], "Civic")
+        self.assertIsNone(payload[0]["year"])
+
+    def test_suggestions_endpoint_excludes_inactive_vehicles(self):
+        create_vehicle(
+            self.seller,
+            model="Civic",
+            year_of_manufacture=2015,
+            is_active=False,
+        )
+
+        response = self.client.get(reverse("vehicle-suggestions"), {"q": "civic"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+
+class VehicleSuggestionQueryTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="suggestion-seller", password="password")
+        self.seller = Seller.objects.create(
+            owner=self.user,
+            seller_type=SellerType.BUSINESS,
+            name="Suggestion Motors",
+        )
+        create_vehicle(
+            self.seller,
+            make="Toyota",
+            model="Vitz",
+            year_of_manufacture=2018,
+            is_active=True,
+        )
+        create_vehicle(
+            self.seller,
+            make="Honda",
+            model="Fit",
+            year_of_manufacture=2010,
+            is_active=True,
+        )
+
+    def test_vehicle_search_suggestions_are_sorted(self):
+        suggestions = vehicle_search_suggestions()
+        self.assertEqual(
+            [item["phrase"] for item in suggestions],
+            ["Honda", "Honda Fit", "Toyota", "Toyota Vitz"],
+        )
+
+
+class VehicleSuggestionLimitTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="suggestion-limit-seller",
+            password="password",
+        )
+        self.seller = Seller.objects.create(
+            owner=self.user,
+            seller_type=SellerType.BUSINESS,
+            name="Limit Motors",
+        )
+
+    def test_vehicle_search_suggestions_limits_each_query_before_merge(self):
+        for index in range(12):
+            create_vehicle(
+                self.seller,
+                make=f"Make-{index:02d}",
+                model="Shared",
+                year_of_manufacture=2010 + index,
+                is_active=True,
+            )
+
+        suggestions = vehicle_search_suggestions(limit=5)
+        self.assertEqual(len(suggestions), 5)
+        self.assertEqual(
+            [item["phrase"] for item in suggestions],
+            [
+                "Make-00",
+                "Make-00 Shared",
+                "Make-01",
+                "Make-01 Shared",
+                "Make-02",
+            ],
+        )
 
 
 class VehicleActivityApiTests(TestCase):

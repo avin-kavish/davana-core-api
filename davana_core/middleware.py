@@ -1,26 +1,14 @@
 import json
 
-from asgiref.sync import iscoroutinefunction
-from django.conf import settings
-
 
 class DebugResponseLoggingMiddleware:
-    async_capable = True
     sync_capable = True
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        if iscoroutinefunction(self.get_response):
-            return self.__acall__(request)
-
         response = self.get_response(request)
-        self._maybe_print_response(request, response)
-        return response
-
-    async def __acall__(self, request):
-        response = await self.get_response(request)
         self._maybe_print_response(request, response)
         return response
 
