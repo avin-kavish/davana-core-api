@@ -1,6 +1,10 @@
 from django import forms
 
 
+class GridCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
+    template_name = "vehicles/widgets/grid_checkbox_select.html"
+
+
 class DatalistTextInput(forms.TextInput):
     """Text input with HTML datalist suggestions; any value remains valid."""
 

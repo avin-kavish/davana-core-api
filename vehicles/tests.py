@@ -10,9 +10,11 @@ from rest_framework.test import APIClient
 
 from sellers.models import Seller, SellerType
 from vehicles.admin_forms import VehicleAdminForm
+from vehicles.filter_params import build_filter_params
 from vehicles.filters import VehicleFilterSet
-from vehicles.models import Vehicle, VehicleCondition, VehiclePhoto, VehicleType
+from vehicles.models import Vehicle, VehicleActivity, VehicleActivityType, VehicleCondition, VehiclePhoto, VehicleType
 from vehicles.short_id import SHORT_ID_SIZE
+from vehicles.term_parser import parse_vehicle_term
 
 User = get_user_model()
 
@@ -26,7 +28,7 @@ def make_test_image(name: str = "test.jpg") -> SimpleUploadedFile:
 
 def create_vehicle(seller: Seller, **overrides) -> Vehicle:
     data = {
-        "title": "Test Vehicle",
+        "title_suffix": "",
         "asking_price": Decimal("1000000"),
         "vehicle_type": VehicleType.CAR,
         "make": "Honda",
@@ -63,24 +65,33 @@ class VehicleModelTests(TestCase):
     def test_vehicle_short_id_is_generated_on_save(self):
         vehicle = create_vehicle(
             self.seller,
-            title="Honda CR-V 2012",
             asking_price=Decimal("12000000"),
             vehicle_type=VehicleType.SUV,
             model="CR-V",
             year_of_manufacture=2012,
             mileage_km=140000,
         )
+        self.assertEqual(vehicle.title, "Honda CR-V 2012")
         self.assertEqual(len(vehicle.short_id), SHORT_ID_SIZE)
 
     def test_vehicle_short_ids_are_unique(self):
-        first = create_vehicle(self.seller, title="First")
-        second = create_vehicle(self.seller, title="Second")
+        first = create_vehicle(self.seller, model="First")
+        second = create_vehicle(self.seller, model="Second")
         self.assertNotEqual(first.short_id, second.short_id)
+
+    def test_vehicle_photo_filename_includes_short_id(self):
+        vehicle = create_vehicle(self.seller, model="CR-V", year_of_manufacture=2012)
+        photo = VehiclePhoto.objects.create(
+            vehicle=vehicle,
+            image=make_test_image("drv-front.jpeg"),
+        )
+        expected_name = f"vehicles/{vehicle.short_id}/photos/drv-front-{vehicle.short_id}.jpeg"
+        self.assertEqual(photo.image.name, expected_name)
 
     def test_admin_form_accepts_make_outside_suggestions(self):
         form = VehicleAdminForm(
             data={
-                "title": "Custom Make Car",
+                "title_suffix": "Limited Edition",
                 "asking_price": "1000000",
                 "vehicle_type": VehicleType.CAR,
                 "make": "Tata",
@@ -100,6 +111,66 @@ class VehicleModelTests(TestCase):
         )
         self.assertTrue(form.is_valid(), form.errors)
 
+class VehicleTermParserTests(TestCase):
+    def test_parses_make_and_model(self):
+        self.assertEqual(
+            parse_vehicle_term("honda civic"),
+            {"make": "Honda", "model": "Civic"},
+        )
+
+    def test_parses_make_model_and_year(self):
+        self.assertEqual(
+            parse_vehicle_term("honda civic 2012"),
+            {
+                "make": "Honda",
+                "model": "Civic",
+                "year_from": "2012",
+                "year_to": "2012",
+            },
+        )
+
+    def test_parses_multi_word_make(self):
+        self.assertEqual(
+            parse_vehicle_term("mercedes-benz c-class"),
+            {"make": "Mercedes-Benz", "model": "C-Class"},
+        )
+
+    def test_unknown_model_is_not_guessed(self):
+        self.assertEqual(
+            parse_vehicle_term("honda unknownmodel"),
+            {"make": "Honda"},
+        )
+
+    def test_multi_word_model(self):
+        self.assertEqual(
+            parse_vehicle_term("toyota land cruiser"),
+            {"make": "Toyota", "model": "Land Cruiser"},
+        )
+
+
+class VehicleFilterParamTests(TestCase):
+    def test_term_is_zeroed_and_merged_into_filters(self):
+        filters = build_filter_params({"term": "honda civic"})
+        self.assertIsNone(filters["term"])
+        self.assertEqual(filters["make"], "Honda")
+        self.assertEqual(filters["model"], "Civic")
+
+    def test_term_replaces_make_model_and_year(self):
+        filters = build_filter_params(
+            {
+                "term": "honda civic",
+                "make": "Toyota",
+                "model": "Vitz",
+                "year_from": "2015",
+                "year_to": "2015",
+            }
+        )
+        self.assertIsNone(filters["term"])
+        self.assertEqual(filters["make"], "Honda")
+        self.assertEqual(filters["model"], "Civic")
+        self.assertIsNone(filters["year_from"])
+        self.assertIsNone(filters["year_to"])
+
 
 class VehicleFilterTests(TestCase):
     def setUp(self):
@@ -111,7 +182,6 @@ class VehicleFilterTests(TestCase):
         )
         self.cheap = create_vehicle(
             self.seller,
-            title="Cheap Car",
             asking_price=Decimal("1000000"),
             make="Toyota",
             model="Vitz",
@@ -120,7 +190,6 @@ class VehicleFilterTests(TestCase):
         )
         self.expensive = create_vehicle(
             self.seller,
-            title="Expensive Car",
             asking_price=Decimal("12000000"),
             vehicle_type=VehicleType.SUV,
             model="CR-V",
@@ -166,7 +235,6 @@ class VehicleApiTests(TestCase):
         )
         self.vehicle = create_vehicle(
             self.seller,
-            title="Honda CR-V 2012",
             description="Well maintained SUV.",
             asking_price=Decimal("12000000"),
             vehicle_type=VehicleType.SUV,
@@ -188,27 +256,77 @@ class VehicleApiTests(TestCase):
             wheel_size_in=17,
             tyre_size="225/55 R17",
             is_active=True,
-            features=["Bluetooth", "Reverse camera"],
+            features=["Bluetooth", "Reverse Camera"],
         )
         VehiclePhoto.objects.create(
             vehicle=self.vehicle,
+            title="Front driver side",
             description="Front view",
             section="Exterior",
             masonry_position=1,
             carousel_position=1,
             image=make_test_image(),
         )
+        self.vehicle.thumbnail = self.vehicle.photos.first()
+        self.vehicle.save(update_fields=["thumbnail"])
 
     def test_list_endpoint_returns_vehicle_summary(self):
         response = self.client.get(reverse("vehicle-list"))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()), 1)
-        item = response.json()[0]
+        payload = response.json()
+        self.assertEqual(len(payload["results"]), 1)
+        self.assertIsNone(payload["next"])
+        self.assertIsNone(payload["previous"])
+        item = payload["results"][0]
         self.assertEqual(item["short_id"], self.vehicle.short_id)
         self.assertEqual(item["title"], "Honda CR-V 2012")
         self.assertEqual(item["location"], "Colombo")
         self.assertEqual(item["mileage_km"], 140000)
-        self.assertTrue(item["primary_photo_url"])
+        self.assertTrue(item["thumbnail_url"])
+
+    def test_list_endpoint_parses_term_into_filters(self):
+        create_vehicle(
+            self.seller,
+            model="Civic",
+            year_of_manufacture=2015,
+            asking_price=Decimal("5000000"),
+            mileage_km=80000,
+            is_active=True,
+        )
+        response = self.client.get(reverse("vehicle-list"), {"term": "honda civic"})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIsNone(payload["filters"]["term"])
+        self.assertEqual(payload["filters"]["make"], "Honda")
+        self.assertEqual(payload["filters"]["model"], "Civic")
+        self.assertEqual(len(payload["results"]), 1)
+        self.assertEqual(payload["results"][0]["title"], "Honda Civic 2015")
+
+    def test_list_endpoint_supports_cursor_pagination(self):
+        for index in range(3):
+            create_vehicle(
+                self.seller,
+                model=f"Listed-{index}",
+                is_active=True,
+            )
+
+        first_page = self.client.get(reverse("vehicle-list"), {"page_size": 2})
+        self.assertEqual(first_page.status_code, 200)
+        first_payload = first_page.json()
+        self.assertEqual(len(first_payload["results"]), 2)
+        self.assertIsNotNone(first_payload["next"])
+
+        second_page = self.client.get(first_payload["next"])
+        self.assertEqual(second_page.status_code, 200)
+        second_payload = second_page.json()
+        self.assertGreaterEqual(len(second_payload["results"]), 1)
+        first_ids = {item["short_id"] for item in first_payload["results"]}
+        second_ids = {item["short_id"] for item in second_payload["results"]}
+        self.assertFalse(first_ids & second_ids)
+
+    def test_list_endpoint_returns_empty_filters(self):
+        response = self.client.get(reverse("vehicle-list"))
+        self.assertIsNone(response.json()["filters"]["term"])
 
     def test_detail_endpoint_returns_vehicle_without_nested_seller(self):
         response = self.client.get(
@@ -219,11 +337,138 @@ class VehicleApiTests(TestCase):
         self.assertEqual(payload["short_id"], self.vehicle.short_id)
         self.assertEqual(payload["seller"], self.seller.pk)
         self.assertEqual(len(payload["photos"]), 1)
-        self.assertEqual(payload["features"], ["Bluetooth", "Reverse camera"])
+        self.assertEqual(payload["photos"][0]["title"], "Front driver side")
+        self.assertEqual(payload["photos"][0]["section"], "Exterior")
+        self.assertEqual(
+            payload["features"],
+            [
+                {"group": "Entertainment", "items": ["Bluetooth"]},
+                {"group": "Safety", "items": ["Reverse Camera"]},
+            ],
+        )
 
     def test_inactive_vehicle_not_listed(self):
         self.vehicle.is_active = False
         self.vehicle.save(update_fields=["is_active"])
         response = self.client.get(reverse("vehicle-list"))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json()["results"], [])
+
+
+class VehicleActivityApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username="activity-seller",
+            password="password",
+            phone="0112000000",
+        )
+        self.seller = Seller.objects.create(
+            owner=self.user,
+            seller_type=SellerType.PERSONAL,
+            name="Amitha",
+            phone="0773493079",
+            location_text="Colombo",
+        )
+        self.vehicle = create_vehicle(self.seller, is_active=True)
+        self.inactive_vehicle = create_vehicle(
+            self.seller, model="Inactive", is_active=False
+        )
+
+    def test_create_view_activity(self):
+        response = self.client.post(
+            reverse(
+                "vehicle-activity-list",
+                kwargs={"short_id": self.vehicle.short_id},
+            ),
+            {
+                "activity_type": VehicleActivityType.VIEW,
+                "visitor_id": "visitor-123",
+                "utm_source": "google",
+                "utm_medium": "cpc",
+            },
+            format="json",
+            REMOTE_ADDR="203.0.113.10",
+        )
+        self.assertEqual(response.status_code, 201)
+        activity = VehicleActivity.objects.get()
+        self.assertEqual(activity.vehicle, self.vehicle)
+        self.assertEqual(activity.activity_type, VehicleActivityType.VIEW)
+        self.assertEqual(activity.visitor_id, "visitor-123")
+        self.assertEqual(activity.ip_address, "203.0.113.10")
+        self.assertEqual(activity.utm_source, "google")
+        self.assertEqual(activity.utm_medium, "cpc")
+
+    def test_create_call_activity(self):
+        response = self.client.post(
+            reverse(
+                "vehicle-activity-list",
+                kwargs={"short_id": self.vehicle.short_id},
+            ),
+            {
+                "activity_type": VehicleActivityType.CALL,
+                "visitor_id": "visitor-456",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            VehicleActivity.objects.get().activity_type, VehicleActivityType.CALL
+        )
+
+    def test_create_whatsapp_activity(self):
+        response = self.client.post(
+            reverse(
+                "vehicle-activity-list",
+                kwargs={"short_id": self.vehicle.short_id},
+            ),
+            {
+                "activity_type": VehicleActivityType.WHATSAPP,
+                "visitor_id": "visitor-789",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            VehicleActivity.objects.get().activity_type,
+            VehicleActivityType.WHATSAPP,
+        )
+
+    def test_create_activity_for_unknown_vehicle_returns_404(self):
+        response = self.client.post(
+            reverse(
+                "vehicle-activity-list",
+                kwargs={"short_id": "unknownshort"},
+            ),
+            {
+                "activity_type": VehicleActivityType.VIEW,
+                "visitor_id": "visitor-123",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(VehicleActivity.objects.count(), 0)
+
+    def test_create_activity_for_inactive_vehicle_returns_404(self):
+        response = self.client.post(
+            reverse(
+                "vehicle-activity-list",
+                kwargs={"short_id": self.inactive_vehicle.short_id},
+            ),
+            {
+                "activity_type": VehicleActivityType.VIEW,
+                "visitor_id": "visitor-123",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(VehicleActivity.objects.count(), 0)
+
+    def test_activity_endpoint_does_not_support_list(self):
+        response = self.client.get(
+            reverse(
+                "vehicle-activity-list",
+                kwargs={"short_id": self.vehicle.short_id},
+            )
+        )
+        self.assertEqual(response.status_code, 405)

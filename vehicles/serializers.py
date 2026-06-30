@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from vehicles.models import Vehicle, VehiclePhoto
+from vehicles.feature_groups import group_and_sort_features
+from vehicles.models import Vehicle, VehicleActivity, VehiclePhoto
 
 
 def image_url(image_field) -> str | None:
@@ -9,12 +10,14 @@ def image_url(image_field) -> str | None:
     return image_field.url
 
 
+
 class VehiclePhotoSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = VehiclePhoto
         fields = (
+            "title",
             "description",
             "section",
             "masonry_position",
@@ -35,19 +38,24 @@ class VehicleListSerializer(serializers.ModelSerializer):
             "short_id",
             "title",
             "asking_price",
-            "location",
+            "district",
+            "town",
             "mileage_km",
             "thumbnail_url",
             "created_at",
         )
 
     def get_thumbnail_url(self, obj: Vehicle) -> str | None:
+        if not obj.thumbnail_id:
+            return None
         return image_url(obj.thumbnail.image)
 
 
 class VehicleDetailSerializer(serializers.ModelSerializer):
     photos = VehiclePhotoSerializer(many=True, read_only=True)
     seller = serializers.PrimaryKeyRelatedField(read_only=True)
+    thumbnail_url = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
 
     class Meta:
         model = Vehicle
@@ -56,8 +64,10 @@ class VehicleDetailSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "asking_price",
-            "location",
+            "district",
+            "town",
             "mileage_km",
+            "thumbnail_url",
             "created_at",
             "vehicle_type",
             "make",
@@ -85,4 +95,26 @@ class VehicleDetailSerializer(serializers.ModelSerializer):
             "features",
             "seller",
             "photos",
+        )
+
+    def get_thumbnail_url(self, obj: Vehicle) -> str | None:
+        if not obj.thumbnail_id:
+            return None
+        return image_url(obj.thumbnail.image)
+
+    def get_features(self, obj: Vehicle) -> list[dict[str, list[str] | str]]:
+        return group_and_sort_features(obj.features)
+
+
+class VehicleActivityCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleActivity
+        fields = (
+            "activity_type",
+            "visitor_id",
+            "utm_source",
+            "utm_medium",
+            "utm_campaign",
+            "utm_term",
+            "utm_content",
         )

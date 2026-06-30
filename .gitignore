@@ -11,6 +11,7 @@ wheels/
 
 # Environment and local data
 .env
+env.prod
 db.sqlite3
 test_db.sqlite3
 media/

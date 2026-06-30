@@ -6,7 +6,7 @@ from sellers.models import Seller
 
 @admin.register(Seller)
 class SellerAdmin(admin.ModelAdmin):
-    list_display = ("name", "seller_type", "owner", "phone", "location_text", "created_at")
+    list_display = ("name", "seller_type", "owner", "phone", "district", "town", "created_at")
     list_filter = ("seller_type",)
     search_fields = ("name", "owner__username", "owner__email", "phone")
     readonly_fields = ("created_at", "logo_preview")

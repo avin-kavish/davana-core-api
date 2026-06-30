@@ -1,0 +1,38 @@
+.vehicle-features {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.form-row.field-features > div,
+.field-features .flex-container {
+  max-width: none;
+  width: 100%;
+}
+
+.vehicle-features__group {
+  border: 0;
+  margin: 0 0 1rem;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.vehicle-features__legend {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+
+.vehicle-features__grid {
+  display: grid;
+  gap: 0.35rem 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vehicle-features__item label {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}

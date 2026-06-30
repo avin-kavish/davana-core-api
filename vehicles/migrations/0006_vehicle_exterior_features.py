@@ -1,0 +1,83 @@
+import django.contrib.postgres.fields
+from django.db import migrations, models
+
+FEATURE_CHOICES = [
+    ("Airbags", "Airbags"),
+    ("ABS", "ABS"),
+    ("Traction Control", "Traction Control"),
+    ("Electronic Stability Control", "Electronic Stability Control"),
+    ("Lane Assist", "Lane Assist"),
+    ("Lane Departure Warning", "Lane Departure Warning"),
+    ("Blind Spot Monitor", "Blind Spot Monitor"),
+    ("Forward Collision Warning", "Forward Collision Warning"),
+    ("Automatic Emergency Braking", "Automatic Emergency Braking"),
+    ("Parking Sensors", "Parking Sensors"),
+    ("Reverse Camera", "Reverse Camera"),
+    ("360° Camera", "360° Camera"),
+    ("Tyre Pressure Monitoring", "Tyre Pressure Monitoring"),
+    ("ISOFIX Child Seat Anchors", "ISOFIX Child Seat Anchors"),
+    ("Hill Start Assist", "Hill Start Assist"),
+    ("Hill Descent Control", "Hill Descent Control"),
+    ("Cruise Control", "Cruise Control"),
+    ("Adaptive Cruise Control", "Adaptive Cruise Control"),
+    ("Climate Control", "Climate Control"),
+    ("Dual Zone Climate Control", "Dual Zone Climate Control"),
+    ("Heated Seats", "Heated Seats"),
+    ("Ventilated Seats", "Ventilated Seats"),
+    ("Memory Seats", "Memory Seats"),
+    ("Power Seats", "Power Seats"),
+    ("Leather Seats", "Leather Seats"),
+    ("Sunroof", "Sunroof"),
+    ("Panoramic Roof", "Panoramic Roof"),
+    ("Keyless Entry", "Keyless Entry"),
+    ("Push Button Start", "Push Button Start"),
+    ("Remote Start", "Remote Start"),
+    ("Bluetooth", "Bluetooth"),
+    ("Navigation", "Navigation"),
+    ("Radio", "Radio"),
+    ("CD Player", "CD Player"),
+    ("USB Port", "USB Port"),
+    ("Apple CarPlay", "Apple CarPlay"),
+    ("Android Auto", "Android Auto"),
+    ("Wireless Phone Charging", "Wireless Phone Charging"),
+    ("Premium Sound System", "Premium Sound System"),
+    ("Paddle Shifters", "Paddle Shifters"),
+    ("Sport Mode", "Sport Mode"),
+    ("Drive Mode Selector", "Drive Mode Selector"),
+    ("Limited Slip Differential", "Limited Slip Differential"),
+    ("Alloy Wheels", "Alloy Wheels"),
+    ("Door Visors", "Door Visors"),
+    ("Power Windows", "Power Windows"),
+    ("Power Mirrors", "Power Mirrors"),
+    ("Auto Dimming Mirror", "Auto Dimming Mirror"),
+    ("Rain Sensing Wipers", "Rain Sensing Wipers"),
+    ("Auto Headlights", "Auto Headlights"),
+    ("Power Tailgate", "Power Tailgate"),
+    ("Tow Bar", "Tow Bar"),
+    ("Fog Lights", "Fog Lights"),
+    ("LED Headlights", "LED Headlights"),
+]
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("vehicles", "0005_vehicle_feature_list"),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name="vehicle",
+            name="features",
+            field=django.contrib.postgres.fields.ArrayField(
+                base_field=models.CharField(
+                    blank=True,
+                    choices=FEATURE_CHOICES,
+                    max_length=100,
+                    null=True,
+                ),
+                blank=True,
+                null=True,
+            ),
+        ),
+    ]

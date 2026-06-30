@@ -21,7 +21,8 @@ class SellerSerializer(serializers.ModelSerializer):
             "logo_url",
             "created_at",
             "phone",
-            "location_text",
+            "district",
+            "town",
         )
 
     def get_logo_url(self, obj: Seller) -> str | None:

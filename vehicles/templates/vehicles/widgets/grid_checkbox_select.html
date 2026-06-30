@@ -1,0 +1,18 @@
+<div class="vehicle-features"{% include "django/forms/widgets/attrs.html" %}>
+{% for group, options, index in widget.optgroups %}
+  {% if group %}
+  <fieldset class="vehicle-features__group">
+    <legend class="vehicle-features__legend">{{ group }}</legend>
+    <ul class="vehicle-features__grid">
+  {% else %}
+    <ul class="vehicle-features__grid">
+  {% endif %}
+      {% for option in options %}
+        <li class="vehicle-features__item">{% include option.template_name with widget=option %}</li>
+      {% endfor %}
+    </ul>
+  {% if group %}
+  </fieldset>
+  {% endif %}
+{% endfor %}
+</div>
