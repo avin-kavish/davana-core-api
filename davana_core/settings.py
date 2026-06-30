@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 TESTING = "test" in sys.argv
 
-DEBUG = env_bool("DEBUG", True)
+DEBUG = env_bool("DEBUG", False)
 
 SECRET_KEY = env("SECRET_KEY", "django-insecure-dev-only-change-me")
 
