@@ -4,8 +4,8 @@ from django.contrib import admin
 from django.urls import include, path
 
 urlpatterns = [
-    path("system-admin/", admin.site.urls),
-    path("v1/", include("davana_core.v1_urls")),
+    path("/api/system-admin/", admin.site.urls),
+    path("/api/v1/", include("davana_core.v1_urls")),
 ]
 
 if settings.DEBUG:
