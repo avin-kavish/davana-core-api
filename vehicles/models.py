@@ -49,6 +49,10 @@ class DriveType(models.TextChoices):
     AWD = "awd", "All-wheel drive"
     FOURBY = "4x4", "4x4"
 
+class InteriorType(models.TextChoices):
+    LEATHER = "leather", "Leather"
+    FABRIC = "fabric", "Fabric"
+    LEATHER_MIX = "leather-mix", "Leather mix"
 
 def vehicle_photo_upload_to(instance: "VehiclePhoto", filename: str) -> str:
     path = Path(filename)
@@ -181,7 +185,12 @@ class Vehicle(models.Model):
 
     exterior_color = models.CharField(max_length=64, blank=True)
     interior_color = models.CharField(max_length=64, blank=True)
-    interior_type = models.CharField(max_length=64, blank=True)
+    interior_type = models.CharField(
+        choices=InteriorType.choices, 
+        max_length=64, 
+        blank=True,
+        default=InteriorType.FABRIC
+    )
 
     mileage_km = models.PositiveIntegerField()
     seats = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -266,13 +275,17 @@ class VehicleActivity(models.Model):
         return f"{self.vehicle.short_id} {self.activity_type} ({self.visitor_id})"
 
 
+class VehiclePhotoSection(models.TextChoices):
+    INTERIOR = "interior", "Interior"
+    EXTERIOR = "exterior", "Exterior"
+
 class VehiclePhoto(models.Model):
     vehicle = models.ForeignKey(
         Vehicle, on_delete=models.CASCADE, related_name="photos"
     )
     title = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
-    section = models.CharField(max_length=64, blank=True)
+    section = models.CharField(choices=VehiclePhotoSection.choices, max_length=64, blank=True)
     masonry_position = models.PositiveSmallIntegerField(null=True, blank=True)
     carousel_position = models.PositiveSmallIntegerField(null=True, blank=True)
     image = models.ImageField(upload_to=vehicle_photo_upload_to)
